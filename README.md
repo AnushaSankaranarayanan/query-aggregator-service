@@ -57,7 +57,6 @@ Go version >= 1.18
 ## Install
     $ git clone https://github.com/anushasankaranarayanan/query-aggregator-service.git
     $ cd query-aggregator-service
-    $ go mod tidy
 
 ## Build, Tests and Coverage
 
@@ -107,9 +106,13 @@ VERSION=1.0.0
 HTTP_RETRY_MIN_WAIT=5s
 HTTP_RETRY_MAX_WAIT=30s
 HTTP_MAX_RETRIES=3
+```
+Navigate to directory:
+```
+cd cmd/microservice
 
 ```
-Run `go run main.go` from command line and issue requests to : `http://localhost:9000`
+Run `go run -tags real main.go` . Issue requests to : `http://localhost:9000`
 
 ### Docker compose
 #### Install [Docker](https://www.docker.com/) on your system.
