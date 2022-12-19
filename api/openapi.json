@@ -1,0 +1,128 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "description": "OpenAPI - Query Aggregator Service",
+    "title": "query-aggregator-service",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support",
+      "url": "https://github.com/support",
+      "email": "anushasankaranarayanan@github.com"
+    }
+  },
+  "paths": {
+    "/queryaggregatorservice/api/v1/query": {
+      "get": {
+        "summary": "Api endpoint that aggregates the results of 3 HTTP Calls, sorts and limits the response based on the request parameters",
+        "operationId": "query",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "sortKey",
+            "description": "SortKey(relevanceScore or views)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "description": "Value to limit the response",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The response will contain the results from 3 URLs(https://raw.githubusercontent.com/assignment132/assignment/main/duckduckgo.json,https://raw.githubusercontent.com/assignment132/assignment/main/google.json and https://raw.githubusercontent.com/assignment132/assignment/main/wikipedia.json) -  sorted and limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "QueryServiceData": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "views": {
+            "type": "integer"
+          },
+          "relevanceScore": {
+            "type": "string"
+          }
+        }
+      },
+      "SimpleResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "number",
+            "format": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "Response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SimpleResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "number",
+                "format": "integer"
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/QueryServiceData"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

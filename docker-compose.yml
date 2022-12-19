@@ -1,0 +1,14 @@
+version: "2"
+services:
+  query-aggregator:
+    build: .
+    environment:
+      - LOG_LEVEL=INFO
+      - SERVER_PORT=9000
+      - NAME=query-aggregator-service
+      - VERSION=1.0.0
+      - HTTP_RETRY_MIN_WAIT=2s
+      - HTTP_RETRY_MAX_WAIT=30s
+      - HTTP_MAX_RETRIES=3
+    ports:
+      - ${SERVER_PORT}:${SERVER_PORT}

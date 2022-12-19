@@ -1,0 +1,7 @@
+/build/microservice
+.vscode
+.DS_Store
+cmd/microservice/openapi.json
+tests/results/
+.idea/
+.env

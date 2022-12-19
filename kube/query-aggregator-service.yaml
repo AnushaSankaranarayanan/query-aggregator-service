@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: query-aggregator-service
+spec:
+  selector:
+    app: query-aggregator-service
+  ports:
+    - port: 80
+      targetPort: 9000
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: query-aggregator-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: query-aggregator-service
+  template:
+    metadata:
+      labels:
+        app: query-aggregator-service
+    spec:
+      containers:
+        - name: query-aggregator-service
+          image: anushasankaranarayanan/query-aggregator-service:1.0.0
+          ports:
+            - containerPort: 9000
+          env:
+            - name: LOG_LEVEL
+              value: info
+            - name: SERVER_PORT
+              value: "9000"
+            - name: NAME
+              value: query-aggregator-service
+            - name: VERSION
+              value: 1.0.0
+            - name: HTTP_RETRY_MIN_WAIT
+              value: 2s
+            - name: HTTP_RETRY_MAX_WAIT
+              value: 30s
+            - name: HTTP_MAX_RETRIES
+              value: "3"
+          imagePullPolicy: Always
