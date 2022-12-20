@@ -67,6 +67,14 @@ func TestServices(t *testing.T) {
 			limit:            1,
 			expectedResponse: entity.QueryServiceResponse{},
 		},
+		{
+			name:             "AggregateResults - http response unmarshal error",
+			httpResponse:     `{"data": "123"}`,
+			httpFlag:         "",
+			sortKey:          consts.Views,
+			limit:            1,
+			expectedResponse: entity.QueryServiceResponse{},
+		},
 	}
 
 	for _, test := range tests {

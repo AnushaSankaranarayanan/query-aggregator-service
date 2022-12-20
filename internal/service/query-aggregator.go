@@ -105,13 +105,16 @@ func callUrl(ch chan entity.QueryServiceResponse, url string, httpClient HttpCli
 	if err != nil {
 		l.Errorf("error calling URL: %s. Details: %s", url, err.Error())
 		ch <- resp
+		return
 	}
 	if err = json.Unmarshal(bytes, &resp); err != nil {
 		l.Errorf("error unmarshalling http response from url %s.Details: %s ", url, err.Error())
 		ch <- resp
+		return
 	}
 	l.Tracef("Received response %v from url %s", resp, url)
 	ch <- resp
+	return
 }
 
 func request(url string, httpClient HttpClient) ([]byte, error) {
