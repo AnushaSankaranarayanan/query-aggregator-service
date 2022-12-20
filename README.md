@@ -235,12 +235,23 @@ curl --location --request GET 'http://localhost:9000/api/v1/query?sortKey=data'
     "count": 0
 }
 
+Error querying one of the servers
+curl --location --request GET 'http://localhost:9000/api/v1/query?sortKey=relevanceScore&limit=3'
+
+{
+    "code": 500,
+    "status": "ERROR",
+    "message": "QueryHandler internal error. Refer to logs for further details error calling URL: https://raw.githubusercontent.com/assignment132/assignment/main/duckduckgo.json1. Details: status code unexpected, statusCode 404. Response body: 404: Not Found",
+    "data": null,
+    "count": 0
+}
 
 ```
 ## Known caveats
 * Swagger assets are included in the service. Moving that to a common module would be a sensible choice
-* Currently , this service does not return an error if either of the URLs doesn't respond. It just logs the errors in such cases and proceeds with the rest. This could be improved with a robust error handling mechanism
+* Currently , this service returns a 500 response even if a single error occurs. This could be improved after an elaborate internal discussion within the team
 * Currently, the sort is on ascending order. This could be driven by a query parameter 
+* The URLs are hardcoded in the service. This could be moved to an environment variable
 * Build tags(fake and real) are used for unit testing. Alternatively , we could use mocks
 * The service is not guarded currently
 * Logrus is being used for logging. We could use this as a middleware to prevent initializing in multiple places

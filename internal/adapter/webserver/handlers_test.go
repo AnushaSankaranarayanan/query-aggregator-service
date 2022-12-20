@@ -35,6 +35,7 @@ func TestHandlers(t *testing.T) {
 	tests := []struct {
 		name, httpResponse, url string
 		expectedResponseCode    int
+		errorFlag               string
 	}{
 		{
 			name:                 "QueryHandler should fail(invalid/empty sortKey)",
@@ -53,6 +54,13 @@ func TestHandlers(t *testing.T) {
 			httpResponse:         fakeResponseJson,
 			url:                  "https://fakeurl.com?sortKey=relevanceScore&limit=201",
 			expectedResponseCode: http.StatusBadRequest,
+		},
+		{
+			name:                 "QueryHandler should fail(force http error)",
+			httpResponse:         fakeResponseJson,
+			url:                  "https://fakeurl.com?sortKey=relevanceScore&limit=2",
+			expectedResponseCode: http.StatusInternalServerError,
+			errorFlag:            "forced-http-error",
 		},
 		{
 			name:                 "QueryHandler should pass(sorted by relevanceScore)",
@@ -74,7 +82,7 @@ func TestHandlers(t *testing.T) {
 			rr := httptest.NewRecorder()
 			req, _ := http.NewRequest(http.MethodGet, test.url, nil)
 
-			httpclient := httpclient.NewFakeHttpClient("", []byte(test.httpResponse))
+			httpclient := httpclient.NewFakeHttpClient(test.errorFlag, []byte(test.httpResponse))
 			service := service.NewQueryAggregator(httpclient)
 			server := NewServer(Services{QueryAggregator: service})
 

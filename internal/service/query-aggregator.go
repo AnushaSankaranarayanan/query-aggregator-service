@@ -1,13 +1,19 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
-	"github.com/anushasankaranarayanan/query-aggregator-service/internal/consts"
-	"github.com/anushasankaranarayanan/query-aggregator-service/internal/entity"
-	"github.com/sirupsen/logrus"
+	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
+
+	"golang.org/x/sync/errgroup"
+
+	"github.com/anushasankaranarayanan/query-aggregator-service/internal/consts"
+	"github.com/anushasankaranarayanan/query-aggregator-service/internal/entity"
+	"github.com/sirupsen/logrus"
 )
 
 var l = logrus.StandardLogger()
@@ -18,7 +24,7 @@ const (
 )
 
 type QueryAggregator interface {
-	AggregateResults(sortKey string, limit int) entity.QueryServiceResponse
+	AggregateResults(sortKey string, limit int) (entity.QueryServiceResponse, error)
 }
 
 type HttpClient interface {
@@ -33,56 +39,64 @@ func NewQueryAggregator(httpClient HttpClient) QueryAggregator {
 	return &queryAggregator{httpClient: httpClient}
 }
 
-type workFlow struct {
-	url   string
-	msgCh chan entity.QueryServiceResponse
-}
+// AggregateResults - calls the http servers concurrently,sorts and limits the aggregated data.Error groups are used for error handling when calling goroutines concurrently
+func (svc queryAggregator) AggregateResults(sortKey string, limit int) (entity.QueryServiceResponse, error) {
 
-// AggregateResults - calls the http requests concurrently using goroutines and channels , sorts and limits aggregated data
-func (svc queryAggregator) AggregateResults(sortKey string, limit int) entity.QueryServiceResponse {
+	urls := []string{
+		"https://raw.githubusercontent.com/assignment132/assignment/main/duckduckgo.json",
+		"https://raw.githubusercontent.com/assignment132/assignment/main/google.json",
+		"https://raw.githubusercontent.com/assignment132/assignment/main/wikipedia.json",
+	}
 
-	pipeline := dataPipeline()
 	aggregatedResponse := entity.QueryServiceResponse{}
+	g, _ := errgroup.WithContext(context.Background())
 
-	for _, item := range pipeline {
-		go callUrl(item.msgCh, item.url, svc.httpClient)
+	//invoke concurrently using goroutines
+	for _, url := range urls {
+		url := url //https://golang.org/doc/faq#closures_and_goroutines
+		g.Go(func() error {
+			result, err := callUrl(url, svc.httpClient)
+			if err == nil {
+				aggregatedResponse.Data = append(aggregatedResponse.Data, result.Data...)
+			}
+			return err
+		})
 	}
 
-	for _, item := range pipeline {
-		for message := range item.msgCh {
-			aggregatedResponse.Data = append(aggregatedResponse.Data, message.Data...)
-		}
+	//handle errors
+	if err := g.Wait(); err != nil {
+		l.Error(err.Error())
+		return aggregatedResponse, err
 	}
 
+	//sort and limit the response
 	sortResponse(sortKey, &aggregatedResponse)
-	return limitResponse(limit, aggregatedResponse)
+	return limitResponse(limit, aggregatedResponse), nil
 }
 
-func dataPipeline() []workFlow {
-	return []workFlow{
-		{
-			url:   "https://raw.githubusercontent.com/assignment132/assignment/main/duckduckgo.json",
-			msgCh: make(chan entity.QueryServiceResponse),
-		},
-		{
-			url:   "https://raw.githubusercontent.com/assignment132/assignment/main/google.json",
-			msgCh: make(chan entity.QueryServiceResponse),
-		},
-		{
-			url:   "https://raw.githubusercontent.com/assignment132/assignment/main/wikipedia.json",
-			msgCh: make(chan entity.QueryServiceResponse),
-		},
+func callUrl(url string, httpClient HttpClient) (entity.QueryServiceResponse, error) {
+	resp := entity.QueryServiceResponse{}
+	bytes, err := request(url, httpClient)
+	if err != nil {
+		return resp, errors.New(fmt.Sprintf("error calling URL: %s. Details: %s", url, err.Error()))
 	}
+	if err = json.Unmarshal(bytes, &resp); err != nil {
+		return resp, errors.New(fmt.Sprintf("error unmarshalling http response from url %s.Details: %s ", url, err.Error()))
+	}
+	l.Tracef("Received response %v from url %s", resp, url)
+	return resp, nil
 }
 
-func limitResponse(limit int, aggregatedResponse entity.QueryServiceResponse) entity.QueryServiceResponse {
-	chopLimit := limit
-	if limit > len(aggregatedResponse.Data) {
-		chopLimit = len(aggregatedResponse.Data)
-		l.Infof("Limiting response data from %d to %d", limit, chopLimit)
+func request(url string, httpClient HttpClient) ([]byte, error) {
+	headers := make(map[string][]string)
+	headers[hContentType] = []string{hApplicationJson}
+
+	body, _, err := httpClient.SendRequest(url, http.MethodGet, headers)
+
+	if err != nil {
+		return nil, err
 	}
-	l.Tracef("Limiting response data to %d", chopLimit)
-	return entity.QueryServiceResponse{Data: aggregatedResponse.Data[:chopLimit]}
+	return body, nil
 }
 
 func sortResponse(sortKey string, aggregatedResponse *entity.QueryServiceResponse) {
@@ -98,33 +112,12 @@ func sortResponse(sortKey string, aggregatedResponse *entity.QueryServiceRespons
 	}
 }
 
-func callUrl(ch chan entity.QueryServiceResponse, url string, httpClient HttpClient) {
-	defer close(ch)
-	resp := entity.QueryServiceResponse{}
-	bytes, err := request(url, httpClient)
-	if err != nil {
-		l.Errorf("error calling URL: %s. Details: %s", url, err.Error())
-		ch <- resp
-		return
+func limitResponse(limit int, aggregatedResponse entity.QueryServiceResponse) entity.QueryServiceResponse {
+	chopLimit := limit
+	if limit > len(aggregatedResponse.Data) {
+		chopLimit = len(aggregatedResponse.Data)
+		l.Infof("Limiting response data from %d to %d", limit, chopLimit)
 	}
-	if err = json.Unmarshal(bytes, &resp); err != nil {
-		l.Errorf("error unmarshalling http response from url %s.Details: %s ", url, err.Error())
-		ch <- resp
-		return
-	}
-	l.Tracef("Received response %v from url %s", resp, url)
-	ch <- resp
-	return
-}
-
-func request(url string, httpClient HttpClient) ([]byte, error) {
-	headers := make(map[string][]string)
-	headers[hContentType] = []string{hApplicationJson}
-
-	body, _, err := httpClient.SendRequest(url, http.MethodGet, headers)
-
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
+	l.Tracef("Limiting response data to %d", chopLimit)
+	return entity.QueryServiceResponse{Data: aggregatedResponse.Data[:chopLimit]}
 }

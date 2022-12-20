@@ -5,6 +5,7 @@ package service
 import (
 	"github.com/anushasankaranarayanan/query-aggregator-service/internal/consts"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/anushasankaranarayanan/query-aggregator-service/internal/entity"
@@ -42,6 +43,7 @@ func TestServices(t *testing.T) {
 		name, httpResponse, httpFlag, sortKey string
 		limit                                 int
 		expectedResponse                      entity.QueryServiceResponse
+		expectedError                         string
 	}{
 		{
 			name:             "AggregateResults - sorted by relevanceScore",
@@ -50,6 +52,7 @@ func TestServices(t *testing.T) {
 			sortKey:          consts.RelevanceScore,
 			limit:            1,
 			expectedResponse: responseSortedByScore,
+			expectedError:    "",
 		},
 		{
 			name:             "AggregateResults - sorted by views",
@@ -58,6 +61,7 @@ func TestServices(t *testing.T) {
 			sortKey:          consts.Views,
 			limit:            1,
 			expectedResponse: responseSortedByViews,
+			expectedError:    "",
 		},
 		{
 			name:             "AggregateResults - forced http error",
@@ -66,6 +70,7 @@ func TestServices(t *testing.T) {
 			sortKey:          consts.Views,
 			limit:            1,
 			expectedResponse: entity.QueryServiceResponse{},
+			expectedError:    "forced http error",
 		},
 		{
 			name:             "AggregateResults - http response unmarshal error",
@@ -74,6 +79,7 @@ func TestServices(t *testing.T) {
 			sortKey:          consts.Views,
 			limit:            1,
 			expectedResponse: entity.QueryServiceResponse{},
+			expectedError:    "cannot unmarshal",
 		},
 	}
 
@@ -82,7 +88,11 @@ func TestServices(t *testing.T) {
 
 			httpclient := httpclient.NewFakeHttpClient(test.httpFlag, []byte(test.httpResponse))
 			svc := NewQueryAggregator(httpclient)
-			actualResponse := svc.AggregateResults(test.sortKey, test.limit)
+			actualResponse, err := svc.AggregateResults(test.sortKey, test.limit)
+
+			if err != nil && !strings.Contains(err.Error(), test.expectedError) {
+				t.Errorf("Test %s returned with incorrect error - got (%s) wanted (%s)", test.name, err.Error(), test.expectedError)
+			}
 
 			if !reflect.DeepEqual(actualResponse, test.expectedResponse) {
 				t.Errorf("Test  %s returned with an unexpected response - got (%v) wanted (%v)", test.name, actualResponse, test.expectedResponse)

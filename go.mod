@@ -7,6 +7,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/joho/godotenv v1.4.0
 	github.com/sirupsen/logrus v1.9.0
+	golang.org/x/sync v0.1.0
 )
 
 require (

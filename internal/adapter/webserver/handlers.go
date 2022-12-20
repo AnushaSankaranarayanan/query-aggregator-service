@@ -29,8 +29,11 @@ func (s *Server) QueryHandler(c *gin.Context) {
 	}
 
 	numLimit, _ := strconv.Atoi(limit)
-	qryResponse := s.Services.QueryAggregator.AggregateResults(sortKey, numLimit)
-
+	qryResponse, err := s.Services.QueryAggregator.AggregateResults(sortKey, numLimit)
+	if err != nil {
+		handleError(c, http.StatusInternalServerError, fmt.Sprintf("QueryHandler internal error. Refer to logs for further details %s", err.Error()))
+		return
+	}
 	resp := entity.Response{
 		Code:                 http.StatusOK,
 		Status:               http.StatusText(http.StatusOK),
